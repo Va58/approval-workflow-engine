@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: approval-workflow-engine
+
+  datasource:
+    url: jdbc:h2:file:./data/approval_workflow_db
+    driver-class-name: org.h2.Driver
+    username: root
+    password: root
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+server:
+  port: 8083
