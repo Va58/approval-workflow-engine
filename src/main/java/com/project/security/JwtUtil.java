@@ -1,38 +1,68 @@
 package com.project.security;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.util.Date;
 
 @Component
 public class JwtUtil {
 
-    private static final String SECRET = "TECH_PULSE_APPROVAL_ENGINE_2026";
+    @Value("${app.jwt.secret}")
+    private String secret;
+
+    @Value("${app.jwt.expiration-ms}")
+    private long expirationMs;
+
+    private SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
 
     public String generateToken(String email, String role) {
-        long timestamp = System.currentTimeMillis();
-        String data = email + ":" + role + ":" + timestamp + ":" + SECRET;
-        return Base64.getEncoder().encodeToString(data.getBytes(StandardCharsets.UTF_8));
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + expirationMs);
+
+        return Jwts.builder()
+                .subject(email)
+                .claim("role", role)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
     }
 
     public boolean validateToken(String token) {
         try {
-            String decoded = new String(Base64.getDecoder().decode(token), StandardCharsets.UTF_8);
-            String[] parts = decoded.split(":");
-            return parts.length == 4 && SECRET.equals(parts[3]);
+            Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token);
+            return true;
         } catch (Exception e) {
             return false;
         }
     }
 
     public String extractEmail(String token) {
-        String decoded = new String(Base64.getDecoder().decode(token), StandardCharsets.UTF_8);
-        return decoded.split(":")[0];
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        return claims.getSubject();
     }
 
     public String extractRole(String token) {
-        String decoded = new String(Base64.getDecoder().decode(token), StandardCharsets.UTF_8);
-        return decoded.split(":")[1];
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        return claims.get("role", String.class);
     }
 }
